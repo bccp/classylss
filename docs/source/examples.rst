@@ -47,7 +47,7 @@ Loading parameters from file
 
 Users can use the :func:`classylss.load_ini` function to load parameters
 from a CLASS ``.ini`` file into a dictionary. For example, we can load
-the `concise.ini <https://cdn.rawgit.com/lesgourg/class_public/master/concise.ini>`_
+the `concise.ini <https://cdn.jsdelivr.net/gh/lesgourg/class_public@master/default.ini>`_
 parameter file from the CLASS GitHub and use these parameters to initialize
 our :class:`~classylss.binding.ClassEngine`:
 
@@ -63,7 +63,7 @@ Loading precision parameters from file
 
 We can also pass in precision parameters that have been loaded from file
 using the :func:`classylss.load_precision` function. For example, we can load
-the `pk_ref.pre <https://cdn.rawgit.com/lesgourg/class_public/master/pk_ref.pre>`_
+the `pk_ref.pre <https://cdn.jsdelivr.net/gh/lesgourg/class_public@master/pk_ref.pre>`_
 parameter file from the CLASS GitHub:
 
 .. ipython:: python

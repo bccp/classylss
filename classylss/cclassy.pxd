@@ -1,10 +1,11 @@
-# Bunch of declarations from C to python. The idea here is to define only the
-# quantities that will be used, for input, output or intermediate manipulation,
-# by the python wrapper. For instance, in the precision structure, the only
-# item used here is its error message. That is why nothing more is defined from
-# this structure. The rest is internal in Class.
-# If, for whatever reason, you need an other, existing parameter from Class,
-# remember to add it inside this cdef.
+# Bunch of declarations from C to python. The idea here is to define
+# only the quantities that will be used, for input, output or
+# intermediate manipulation, by the python wrapper. For instance, in
+# the precision structure, the only item used here are the error
+# message and one parameter used for an error message. That is why
+# nothing more is defined from this structure. The rest is internal in
+# Class.  If, for whatever reason, you need an other, existing
+# parameter from Class, remember to add it inside this cdef.
 
 DEF _MAX_NUMBER_OF_K_FILES_ = 30
 DEF _MAXTITLESTRINGLENGTH_ = 8000
@@ -14,11 +15,22 @@ DEF _ERRORMSGSIZE_ = 2048
 
 cdef extern from "class.h":
 
+    cdef char[10] _VERSION_
+
     ctypedef char FileArg[40]
 
-    ctypedef char ErrorMsg[_ERRORMSGSIZE_]
+    ctypedef char* ErrorMsg
 
     ctypedef char FileName[_FILENAMESIZE_]
+
+    cdef enum interpolation_method:
+        inter_normal
+        inter_growing_closeby
+
+    cdef enum vecback_format:
+        short_info
+        normal_info
+        long_info
 
     cdef enum linear_or_logarithmic:
         linear
@@ -28,98 +40,140 @@ cdef extern from "class.h":
         class_format
         camb_format
 
+    cdef enum non_linear_method:
+        nl_none
+        nl_halofit
+        nl_HMcode
+
+    cdef enum pk_outputs:
+        pk_linear
+        pk_nonlinear
+        pk_numerical_nowiggle
+        pk_analytic_nowiggle
+
+    cdef enum out_sigmas:
+        out_sigma
+        out_sigma_prime
+        out_sigma_disp
+
+    #Added by classylss
     cdef enum possible_gauges:
         newtonian
         synchronous
 
     cdef struct precision:
-        FileName hyrec_Alpha_inf_file;
-        FileName hyrec_R_inf_file;
-        FileName hyrec_two_photon_tables_file;
-        FileName sBBN_file;
+        double nonlinear_min_k_max
         ErrorMsg error_message
 
     cdef struct background:
+        short is_allocated
         ErrorMsg error_message
-        short has_fld
-        short has_lambda
         int bg_size
-        int index_bg_a
         int index_bg_ang_distance
         int index_bg_lum_distance
         int index_bg_conf_distance
-        int index_bg_time
+        int index_bg_time #Added by classylss
+        int index_bg_a
         int index_bg_H
-        int index_bg_H_prime
+        int index_bg_H_prime  #Added by classylss
         int index_bg_D
         int index_bg_f
-        int index_bg_Omega_r
+        int index_bg_Omega_r  #Added by classylss
         int index_bg_Omega_m
-        int index_bg_rho_g
+        int index_bg_rho_g  #Added by classylss
         int index_bg_rho_b
         int index_bg_rho_cdm
-        int index_bg_rho_fld
-        int index_bg_rho_lambda
-        int index_bg_w_fld
-        int index_bg_rho_ur
-        int index_bg_rho_crit
+        int index_bg_rho_fld  #Added by classylss
+        int index_bg_rho_lambda  #Added by classylss
+        int index_bg_w_fld  #Added by classylss
+        int index_bg_rho_ur  #Added by classylss
         int index_bg_rho_ncdm1
-        int index_bg_p_ncdm1
-
-        int sgnK
-        short long_info
-        short inter_normal
-        double T_cmb
-        double * T_ncdm
-        double H0
-        double h
-        double age
-        double a_today
-        double a_max
-        double conformal_age
+        int index_bg_p_ncdm1  #Added by classylss
+        int index_bg_rho_crit
+        short has_cdm
+        short  has_ncdm
         int N_ncdm
+        double T_cmb
+        double * T_ncdm  #Added by classylss
+        double h
+        double H0
+        double age
+        double conformal_age
+        double K
         double * m_ncdm_in_eV
         double Neff
-        double Omega0_b
         double Omega0_g
+        double Omega0_b
+        double Omega0_idr
+        double T_idr
         double Omega0_cdm
+        double Omega0_idm
         double Omega0_dcdm
-        double Omega0_ur
         double Omega0_ncdm_tot
-        double * Omega0_ncdm
+        double * Omega0_ncdm #Added by classylss
         double Omega0_lambda
         double Omega0_fld
-        double Omega0_k
         double w0_fld
         double wa_fld
         double cs2_fld
-        double K
+        double Omega0_ur
+        double Omega0_dcdmdr
+        double Omega0_dr
+        double Omega0_scf
+        double Omega0_k
         int bt_size
+        double Omega0_m
+        double Omega0_r
+        double Omega0_de
+        double a_eq
+        double H_eq
+        double z_eq
+        double tau_eq
+        #Added by classylss
+        short has_fld
+        short has_lambda
+        int sgnK
 
-    cdef struct thermo:
+    cdef struct thermodynamics:
+        short is_allocated
         ErrorMsg error_message
         int th_size
         int index_th_xe
         int index_th_Tb
-        short inter_normal
         double tau_reio
         double z_reio
         double z_rec
         double tau_rec
         double rs_rec
-        double ra_rec
+        double ra_rec #Added by classylss
         double ds_rec
         double da_rec
+        double z_star
+        double tau_star
+        double rs_star
+        double ds_star
+        double ra_star
+        double da_star
+        double rd_star
         double z_d
         double tau_d
         double ds_d
         double rs_d
+        double conf_time_reio
         double YHe
         double n_e
-
+        double a_idm_dr
+        double b_idr
+        double nindex_idm_dr
+        double m_idm
+        double cross_idm_g
+        double u_idm_g
+        double cross_idm_b
+        double n_index_idm_b
         int tt_size
 
-    cdef struct perturbs:
+    cdef struct perturbations:
+        short is_allocated
         ErrorMsg error_message
         short has_scalars
         short has_vectors
@@ -127,17 +181,15 @@ cdef extern from "class.h":
 
         short has_density_transfers
         short has_velocity_transfers
-        short has_metricpotential_transfers
+        short has_metricpotential_transfers #Added by classylss
 
-        possible_gauges gauge
-        double k_max_for_pk
-        double z_max_pk
         int has_pk_matter
         int l_lss_max
 
         int store_perturbations
         int k_output_values_num
         double k_output_values[_MAX_NUMBER_OF_K_FILES_]
+        double k_max_for_pk
         int index_k_output_values[_MAX_NUMBER_OF_K_FILES_]
         char scalar_titles[_MAXTITLESTRINGLENGTH_]
         char vector_titles[_MAXTITLESTRINGLENGTH_]
@@ -145,7 +197,7 @@ cdef extern from "class.h":
         int number_of_scalar_titles
         int number_of_vector_titles
         int number_of_tensor_titles
-
+        int index_md_scalars
 
         double * scalar_perturbations_data[_MAX_NUMBER_OF_K_FILES_]
         double * vector_perturbations_data[_MAX_NUMBER_OF_K_FILES_]
@@ -154,10 +206,119 @@ cdef extern from "class.h":
         int size_vector_perturbation_data[_MAX_NUMBER_OF_K_FILES_]
         int size_tensor_perturbation_data[_MAX_NUMBER_OF_K_FILES_]
 
-    cdef struct transfers:
+        double * alpha_idm_dr
+        double * beta_idr
+
+        # add source functions for comparison
+        short has_source_t
+        short has_source_p
+        short has_source_delta_m
+        short has_source_delta_cb
+        short has_source_delta_tot
+        short has_source_delta_g
+        short has_source_delta_b
+        short has_source_delta_cdm
+        short has_source_delta_idm
+        short has_source_delta_idr
+        short has_source_delta_dcdm
+        short has_source_delta_fld
+        short has_source_delta_scf
+        short has_source_delta_dr
+        short has_source_delta_ur
+        short has_source_delta_ncdm
+        short has_source_theta_m
+        short has_source_theta_cb
+        short has_source_theta_tot
+        short has_source_theta_g
+        short has_source_theta_b
+        short has_source_theta_cdm
+        short has_source_theta_idm
+        short has_source_theta_idr
+        short has_source_theta_dcdm
+        short has_source_theta_fld
+        short has_source_theta_scf
+        short has_source_theta_dr
+        short has_source_theta_ur
+        short has_source_theta_ncdm
+        short has_source_phi
+        short has_source_phi_prime
+        short has_source_phi_plus_psi
+        short has_source_psi
+        short has_source_h
+        short has_source_h_prime
+        short has_source_eta
+        short has_source_eta_prime
+        short has_source_H_T_Nb_prime
+        short has_source_k2gamma_Nb
+
+        int index_tp_t0
+        int index_tp_t1
+        int index_tp_t2
+        int index_tp_p
+        int index_tp_delta_m
+        int index_tp_delta_cb
+        int index_tp_delta_tot
+        int index_tp_delta_g
+        int index_tp_delta_b
+        int index_tp_delta_cdm
+        int index_tp_delta_idm
+        int index_tp_delta_dcdm
+        int index_tp_delta_fld
+        int index_tp_delta_scf
+        int index_tp_delta_dr
+        int index_tp_delta_ur
+        int index_tp_delta_idr
+        int index_tp_delta_ncdm1
+
+        int index_tp_theta_m
+        int index_tp_theta_cb
+        int index_tp_theta_tot
+        int index_tp_theta_g
+        int index_tp_theta_b
+        int index_tp_theta_cdm
+        int index_tp_theta_dcdm
+        int index_tp_theta_fld
+        int index_tp_theta_scf
+        int index_tp_theta_ur
+        int index_tp_theta_idr
+        int index_tp_theta_idm
+        int index_tp_theta_dr
+        int index_tp_theta_ncdm1
+
+        int index_tp_phi
+        int index_tp_phi_prime
+        int index_tp_phi_plus_psi
+        int index_tp_psi
+        int index_tp_h
+        int index_tp_h_prime
+        int index_tp_eta
+        int index_tp_eta_prime
+        int index_tp_H_T_Nb_prime
+        int index_tp_k2gamma_Nb
+
+        double *** sources
+        double * tau_sampling
+        int tau_size
+        int k_size_pk
+        int * k_size
+        double ** k
+        int * ic_size
+        int index_ic_ad
+        int md_size
+        int * tp_size
+        double * ln_tau
+        int ln_tau_size
+
+        #Added by classylss
+        possible_gauges gauge
+        double z_max_pk
+
+    cdef struct transfer:
+        short is_allocated
         ErrorMsg error_message
 
     cdef struct primordial:
+        short is_allocated
         ErrorMsg error_message
         double k_pivot
         double A_s
@@ -186,9 +347,10 @@ cdef extern from "class.h":
         double n_ad_niv
         double phi_min
         double phi_max
-
         int lnk_size
-    cdef struct spectra:
+
+    cdef struct harmonic:
+        short is_allocated
         ErrorMsg error_message
         int has_tt
         int has_te
@@ -203,7 +365,6 @@ cdef extern from "class.h":
         int has_tl
         int l_max_tot
         int ** l_max_ct
-        int ln_k_size
         int ct_size
         int * ic_size
         int * ic_ic_size
@@ -224,28 +385,28 @@ cdef extern from "class.h":
         int index_ct_tl
         int * l_size
         int index_md_scalars
-        double* ln_k
-        double sigma8
-        double alpha_II_2_20
-        double alpha_RI_2_20
-        double alpha_RR_2_20
-        double alpha_II_21_200
-        double alpha_RI_21_200
-        double alpha_RR_21_200
-        double alpha_II_201_2500
-        double alpha_RI_201_2500
-        double alpha_RR_201_2500
-        double alpha_II_2_2500
-        double alpha_RI_2_2500
-        double alpha_RR_2_2500
-        double alpha_kp
-        double alpha_k1
-        double alpha_k2
 
     cdef struct output:
         ErrorMsg error_message
 
+    cdef struct distortions:
+        short is_allocated
+        double * sd_parameter_table
+        int index_type_g
+        int index_type_mu
+        int index_type_y
+        int index_type_PCA
+        int type_size
+        double * DI
+        double * x
+        double DI_units
+        double x_to_nu
+        int has_distortions
+        int x_size
+        ErrorMsg error_message
+
     cdef struct lensing:
+        short is_allocated
         int has_tt
         int has_ee
         int has_te
@@ -275,8 +436,33 @@ cdef extern from "class.h":
         int l_unlensed_max
         ErrorMsg error_message
 
-    cdef struct nonlinear:
+    cdef struct fourier:
+        short is_allocated
+        short has_pk_matter
+        short has_pk_numerical_nowiggle
+        short has_pk_analytic_nowiggle
         int method
+        int ic_size
+        int ic_ic_size
+        int k_size
+        int k_size_pk
+        int ln_tau_size
+        int index_ln_tau_pk
+        int tau_size
+        int index_tau_min_nl
+        double * k
+        double * ln_k #Added by classylss
+        double * ln_tau
+        double * tau
+        double ** ln_pk_l
+        double ** ln_pk_nl
+        double * sigma8
+        int has_pk_m
+        int has_pk_cb
+        int index_pk_m
+        int index_pk_cb
+        int index_pk_total
+        int index_pk_cluster
         ErrorMsg error_message
 
     cdef struct file_content:
@@ -286,62 +472,86 @@ cdef extern from "class.h":
         FileArg * value
         short * read
 
-    void parser_free(void*)
     void lensing_free(void*)
-    void spectra_free(void*)
+    void harmonic_free(void*)
     void transfer_free(void*)
     void primordial_free(void*)
-    void perturb_free(void*)
+    void perturbations_free(void*)
     void thermodynamics_free(void*)
     void background_free(void*)
-    void nonlinear_free(void*)
+    void fourier_free(void*)
+    void distortions_free(void*)
 
     cdef int _FAILURE_
     cdef int _FALSE_
     cdef int _TRUE_
 
-    int input_init(void*, void*, void*, void*, void*, void*, void*, void*, void*,
-        void*, void*, char*) nogil
+    cdef double _Mpc_over_m_
+    cdef double _c_
+    cdef double _G_
+    cdef double _eV_
+
+    int input_read_from_file(void*, void*, void*, void*, void*, void*, void*, void*, void*,
+        void*, void*, void*, char*) nogil
     int background_init(void*,void*) nogil
     int thermodynamics_init(void*,void*,void*) nogil
-    int perturb_init(void*,void*,void*,void*) nogil
+    int perturbations_init(void*,void*,void*,void*) nogil
     int primordial_init(void*,void*,void*) nogil
-    int nonlinear_init(void*,void*,void*,void*,void*,void*) nogil
+    int fourier_init(void*,void*,void*,void*,void*,void*) nogil
     int transfer_init(void*,void*,void*,void*,void*,void*) nogil
-    int spectra_init(void*,void*,void*,void*,void*,void*,void*) nogil
+    int harmonic_init(void*,void*,void*,void*,void*,void*,void*) nogil
     int lensing_init(void*,void*,void*,void*,void*) nogil
+    int distortions_init(void*,void*,void*,void*,void*,void*) nogil
 
     int background_tau_of_z(void* pba, double z,double* tau) nogil
-    int background_at_tau(void* pba, double tau, short return_format, short inter_mode, int * last_index, double *pvecback) nogil
+    int background_z_of_tau(void* pba, double tau,double* z) nogil
+    int background_at_z(void* pba, double z, int return_format, int inter_mode, int * last_index, double *pvecback) nogil
+    int background_at_tau(void* pba, double tau, int return_format, int inter_mode, int * last_index, double *pvecback) nogil
     int background_output_titles(void * pba, char titles[_MAXTITLESTRINGLENGTH_]) nogil
     int background_output_data(void *pba, int number_of_titles, double *data) nogil
 
-    int thermodynamics_at_z(void * pba, void * pth, double z, short inter_mode, int * last_index, double *pvecback, double *pvecthermo) nogil
+    int thermodynamics_at_z(void * pba, void * pth, double z, int inter_mode, int * last_index, double *pvecback, double *pvecthermo) nogil
     int thermodynamics_output_titles(void * pba, void *pth, char titles[_MAXTITLESTRINGLENGTH_]) nogil
     int thermodynamics_output_data(void *pba, void *pth, int number_of_titles, double *data) nogil
+
+    int perturbations_output_data_at_z(void *pba,void *ppt, file_format output_format, double z, int number_of_titles, double *data) nogil
+    int perturbations_output_data_at_index_tau(void *pba,void *ppt, file_format output_format, int ondex_tau, int number_of_titles, double *data) nogil
+    int perturbations_output_data(void *pba,void *ppt, file_format output_format, double * tkfull, int number_of_titles, double *data) nogil
+    int perturbations_output_firstline_and_ic_suffix(void *ppt, int index_ic, char first_line[_LINE_LENGTH_MAX_], FileName ic_suffix) nogil
+    int perturbations_output_titles(void *pba, void *ppt,  file_format output_format, char titles[_MAXTITLESTRINGLENGTH_]) nogil
 
     int primordial_output_titles(void * ppt, void *ppm, char titles[_MAXTITLESTRINGLENGTH_]) nogil
     int primordial_output_data(void *ppt, void *ppm, int number_of_titles, double *data) nogil
     int primordial_spectrum_at_k(void * ppm, int index_md, linear_or_logarithmic mode, double k, double * pk) nogil
 
-    int spectra_output_tk_titles(void *pba, void *ppt,  file_format output_format, char titles[_MAXTITLESTRINGLENGTH_]) nogil
-    int spectra_output_tk_data(void *pba,void *ppt,void *psp,  file_format output_format, double z, int number_of_titles, double *data) nogil
-
-    int spectra_cl_at_l(void* psp,double l,double * cl,double * * cl_md,double * * cl_md_ic) nogil
+    int harmonic_cl_at_l(void* phr,double l,double * cl,double * * cl_md,double * * cl_md_ic) nogil
     int lensing_cl_at_l(void * ple,int l,double * cl_lensed) nogil
-    int spectra_pk_at_z(
+
+    int harmonic_pk_at_z(
         void * pba,
-        void * psp,
+        void * phr,
         int mode,
         double z,
         double * output_tot,
-        double * output_ic
+        double * output_ic,
+        double * output_cb_tot,
+        double * output_cb_ic
+        ) nogil
+    int fourier_pk_at_z(
+        void * pba,
+        void *pfo,
+        int mode,
+        int pk_output,
+        double z,
+        int index_pk,
+        double * out_pk,
+        double * out_pk_ic
         ) nogil
 
-    int spectra_pk_at_k_and_z(
+    int harmonic_pk_at_k_and_z(
         void* pba,
         void * ppm,
-        void * psp,
+        void * phr,
         double k,
         double z,
         double * pk,
@@ -349,30 +559,74 @@ cdef extern from "class.h":
         double * pk_cb,
         double * pk_cb_ic) nogil
 
-    int spectra_pk_nl_at_k_and_z(
+    int harmonic_pk_nl_at_k_and_z(
         void* pba,
         void * ppm,
-        void * psp,
+        void * phr,
         double k,
         double z,
         double * pk,
         double * pk_cb) nogil
 
-    int spectra_pk_nl_at_z(
+    int harmonic_pk_nl_at_z(
         void * pba,
-        void * psp,
+        void * phr,
         int mode,
         double z,
-        double * output_tot) nogil
+        double * output_tot,
+        double * output_cb_tot) nogil
 
-    int spectra_sigma(
+    int fourier_pk_at_k_and_z(
         void * pba,
         void * ppm,
-        void * psp,
+        void * pfo,
+        int pk_output,
+        double k,
+        double z,
+        int index_pk,
+        double * out_pk,
+        double * out_pk_ic) nogil
+
+    int fourier_pk_tilt_at_k_and_z(
+        void * pba,
+        void * ppm,
+        void * pfo,
+        int pk_output,
+        double k,
+        double z,
+        int index_pk,
+        double * pk_tilt) nogil
+
+    int fourier_sigmas_at_z(
+        void * ppr,
+        void * pba,
+        void * pfo,
         double R,
         double z,
-        double *sigma) nogil
+        int index_pk,
+        int sigma_output,
+        double * result) nogil
 
-    int nonlinear_k_nl_at_z(void* pba, void* pnl, double z, double* k_nl) nogil
+    int fourier_pks_at_kvec_and_zvec(
+        void * pba,
+        void * pfo,
+        int pk_output,
+        double * kvec,
+        int kvec_size,
+        double * zvec,
+        int zvec_size,
+        double * out_pk,
+        double * out_pk_cb) nogil
 
-    int spectra_firstline_and_ic_suffix(void *ppt, int index_ic, char first_line[_LINE_LENGTH_MAX_], FileName ic_suffix) nogil
+    int fourier_k_nl_at_z(void* pba, void* pfo, double z, double* k_nl, double* k_nl_cb) nogil
+
+    int harmonic_fast_pk_at_kvec_and_zvec(
+                  void * pba,
+                  void * phr,
+                  double * kvec,
+                  int kvec_size,
+                  double * zvec,
+                  int zvec_size,
+                  double * pk_tot_out,
+                  double * pk_cb_tot_out,
+                  int nonlinear) nogil

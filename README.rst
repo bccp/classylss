@@ -5,16 +5,12 @@ classylss
    :alt: PyPi
    :target: https://pypi.python.org/pypi/classylss/
 
-.. image:: https://api.travis-ci.org/nickhand/classylss.svg
-    :alt: Build Status
-    :target: https://travis-ci.org/nickhand/classylss/
-
 .. image:: https://zenodo.org/badge/61589760.svg
    :target: https://zenodo.org/badge/latestdoi/61589760
 
 |
 
-A lightweight Python binding of the CMB Boltzmann code `CLASS`, with an emphasis on the routines that are important for large-scale structure calculations. The main modules of the CLASS code are exposed to the user via a Cython wrapper.
+A lightweight Python binding of the CMB Boltzmann code `CLASS`, which extends the information available in the default wrapper. There is an emphasis on the routines that are important for large-scale structure calculations. The main modules of the CLASS code are exposed to the user via a Cython wrapper.
 
 .. _`CLASS` : http://class-code.net
 
@@ -36,13 +32,7 @@ The CLASS code will automatically be downloaded and compiled, and is thus, not a
 Installation
 ------------
 
-The package can be installed as part of the Anaconda package manager using
-
-.. code:: bash
-
-   conda install -c bccp classylss
-
-The package can also be installed via the `pip` command
+The package can be installed via the `pip` command
 
 .. code:: bash
 
@@ -52,12 +42,8 @@ The package can be also be downloaded from github using
 
 .. code:: bash
 
-    git clone https://github.com/nickhand/classylss.git
+    git clone https://github.com/sbird/classylss.git
     cd classylss
-
-If ``CLASS`` is not built succesfully, the user
-can edit the default configuration variables in ``depends/class.cfg``, which are used
-when building the ``CLASS`` library.
 
 To verify that the installation has succeeded, run:
 
@@ -69,8 +55,3 @@ Examples
 --------
 
 See the tests of the code in ``classylss/tests/`` for examples of using each of the main CLASS modules. 
-   
-Feature Requests
-----------------
-
-Additional features of the CLASS code that are not yet implemented can be exposed via the Cython wrapper relatively easily. We encourage users to open up a GitHub issue with any feature requests.

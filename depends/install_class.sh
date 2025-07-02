@@ -3,4 +3,4 @@
 BASEDIR="$1"
 
 cd $BASEDIR/depends;
-make install CLASS_VERSION=$2 DEST=$3
+make install CLASS_VERSION=$2 DEST=$3 CLASSDIR=$4

@@ -1,0 +1,8 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel",
+    "Cython",  # Ensure Cython is included as a build dependency
+    "numpy"    # It's often necessary to include numpy if using it in setup.py
+]
+build-backend = "setuptools.build_meta"

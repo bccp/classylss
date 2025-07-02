@@ -10,18 +10,12 @@ c_flat = ac.FlatLambdaCDM(H0=70, Om0=0.3, Ob0=0.04, Tcmb0=2.7255)
 c_open = ac.LambdaCDM(H0=70, Om0=0.3, Ob0=0.04, Ode0=0.65, Tcmb0=2.7255)
 c_closed = ac.LambdaCDM(H0=70, Om0=0.3, Ob0=0.04, Ode0=0.85, Tcmb0=2.7255)
 
-@pytest.mark.parametrize("c2, a_max", [
-             (c_flat, 1.0), (c_open, 1.0), (c_closed, 1.0),
-             (c_flat, 2.0), (c_open, 2.0), (c_closed, 2.0),
-            ])
-def test_against_astropy(c2, a_max):
-    if a_max > 1.0:
-        z = numpy.array([1.0, 0., -0.25])
-    else:
-        z = numpy.array([1.0, 0.])
+@pytest.mark.parametrize("c2", [c_flat, c_open, c_closed])
+def test_against_astropy(c2):
+    z = numpy.array([1.0, 0.])
 
     # classylss
-    pars = {'h':c2.h, 'Omega_cdm':c2.Odm0, 'Omega_b':c2.Ob0, 'Omega_k':c2.Ok0, 'T_cmb':c2.Tcmb0.value, 'a_max':a_max}
+    pars = {'h':c2.h, 'Omega_cdm':c2.Odm0, 'Omega_b':c2.Ob0, 'Omega_k':c2.Ok0, 'T_cmb':c2.Tcmb0.value}
     cosmo = ClassEngine(pars)
     ba = Background(cosmo)
 

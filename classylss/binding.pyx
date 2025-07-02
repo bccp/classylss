@@ -2,7 +2,7 @@
 cimport cython
 import numpy as np
 cimport numpy as np
-from libc.stdlib cimport malloc, free
+from libc.stdlib cimport calloc, malloc, free
 from libc.string cimport memset, strncpy, strdup
 
 from classylss import get_data_files
@@ -26,7 +26,7 @@ DEF _h_P_ = 6.62606896e-34
 DEF _MAXTITLESTRINGLENGTH_ = 8000
 
 cdef float NAN
-NAN = float("NaN") 
+NAN = float("NaN")
 
 class ClassRuntimeError(RuntimeError):
     def __init__(self, message=""):
@@ -68,9 +68,9 @@ cdef int _build_file_content(pars, file_content * fc) except -1:
     strncpy(fc.filename, "NOFILE", sizeof(FileArg))
 
     _pars = {
-        "Alpha_inf hyrec file": _DATA_FILES['Alpha_inf_hyrec_file'],
-        "R_inf hyrec file" : _DATA_FILES['R_inf_hyrec_file'],
-        "two_photon_tables hyrec file" : _DATA_FILES['two_photon_tables_hyrec_file'],
+        "hyrec_path": _DATA_FILES['hyrec_path'],
+        "sd_external_path" : _DATA_FILES['sd_external_path'],
+        "Galli_file" : _DATA_FILES['Galli_file'],
         "sBBN file": _DATA_FILES['sBBN_file'],
         }
 
@@ -134,16 +134,16 @@ def _build_task_dependency(tasks):
     """
 
     if "lensing" in tasks:
-        tasks.append("spectra")
-    if "spectra" in tasks:
+        tasks.append("harmonic")
+    if "harmonic" in tasks:
         tasks.append("transfer")
     if "transfer" in tasks:
-        tasks.append("nonlinear")
-    if "nonlinear" in tasks:
+        tasks.append("fourier")
+    if "fourier" in tasks:
         tasks.append("primordial")
     if "primordial" in tasks:
-        tasks.append("perturb")
-    if "perturb" in tasks:
+        tasks.append("perturbations")
+    if "perturbations" in tasks:
         tasks.append("thermodynamics")
     if "thermodynamics" in tasks:
         tasks.append("background")
@@ -158,7 +158,7 @@ ctypedef struct ready_flags:
     int th
     int pt
     int pm
-    int nl
+    int fo
     int tr
     int sp
     int op
@@ -178,12 +178,13 @@ cdef class ClassEngine:
     """
     cdef precision pr
     cdef background ba
-    cdef thermo th
-    cdef perturbs pt
+    cdef thermodynamics th
+    cdef perturbations pt
     cdef primordial pm
-    cdef nonlinear nl
-    cdef transfers tr
-    cdef spectra sp
+    cdef fourier fo
+    cdef transfer tr
+    cdef harmonic sp
+    cdef distortions sd
     cdef output op
     cdef lensing le
     cdef ready_flags ready
@@ -221,13 +222,12 @@ cdef class ClassEngine:
         self.compute('input')
 
     def __dealloc__(self):
-        if self.ready.fc: parser_free(&self.fc)
         if self.ready.le: lensing_free(&self.le)
-        if self.ready.sp: spectra_free(&self.sp)
+        if self.ready.sp: harmonic_free(&self.sp)
         if self.ready.tr: transfer_free(&self.tr)
-        if self.ready.nl: nonlinear_free(&self.nl)
+        if self.ready.fo: fourier_free(&self.fo)
         if self.ready.pm: primordial_free(&self.pm)
-        if self.ready.pt: perturb_free(&self.pt)
+        if self.ready.pt: perturbations_free(&self.pt)
         if self.ready.th: thermodynamics_free(&self.th)
         if self.ready.ba: background_free(&self.ba)
 
@@ -254,10 +254,10 @@ cdef class ClassEngine:
         # non-understood parameters asked to the wrapper is a problematic
         # situation.
         if "input" in tasks and not self.ready.input:
-            if input_init(fc, &self.pr, &self.ba, &self.th,
+            if input_read_from_file(fc, &self.pr, &self.ba, &self.th,
                           &self.pt, &self.tr, &self.pm, &self.sp,
-                          &self.nl, &self.le, &self.op, errmsg) == _FAILURE_:
-                raise ClassParserError(errmsg.decode(), self.parameter_file)
+                          &self.fo, &self.le, &self.sd, &self.op, errmsg) == _FAILURE_:
+                raise ClassParserError(errmsg, self.parameter_file)
 
             # This part is done to list all the unread parameters, for debugging
             problem_flag = False
@@ -278,50 +278,50 @@ cdef class ClassEngine:
         # with the error message from the faulty module of CLASS.
         if "background" in tasks and not self.ready.ba:
             if background_init(&(self.pr), &(self.ba)) == _FAILURE_:
-                raise ClassBadValueError(self.ba.error_message.decode())
+                raise ClassBadValueError(self.ba.error_message)
             self.ready.ba = True
 
         if "thermodynamics" in tasks and not self.ready.th:
             if thermodynamics_init(&(self.pr), &(self.ba),
                                    &(self.th)) == _FAILURE_:
-                raise ClassBadValueError(self.th.error_message.decode())
+                raise ClassBadValueError(self.th.error_message)
             self.ready.th = True
 
-        if "perturb" in tasks and not self.ready.pt:
-            if perturb_init(&(self.pr), &(self.ba),
+        if "perturbations" in tasks and not self.ready.pt:
+            if perturbations_init(&(self.pr), &(self.ba),
                             &(self.th), &(self.pt)) == _FAILURE_:
-                raise ClassBadValueError(self.pt.error_message.decode())
+                raise ClassBadValueError(self.pt.error_message)
             self.ready.pt = True
 
         if "primordial" in tasks and not self.ready.pm:
             if primordial_init(&(self.pr), &(self.pt),
                                &(self.pm)) == _FAILURE_:
-                raise ClassBadValueError(self.pm.error_message.decode())
+                raise ClassBadValueError(self.pm.error_message)
             self.ready.pm = True
 
-        if "nonlinear" in tasks and not self.ready.nl:
-            if nonlinear_init(&self.pr, &self.ba, &self.th,
-                              &self.pt, &self.pm, &self.nl) == _FAILURE_:
-                raise ClassBadValueError(self.nl.error_message.decode())
-            self.ready.nl = True
+        if "fourier" in tasks and not self.ready.fo:
+            if fourier_init(&self.pr, &self.ba, &self.th,
+                              &self.pt, &self.pm, &self.fo) == _FAILURE_:
+                raise ClassBadValueError(self.fo.error_message)
+            self.ready.fo = True
 
         if "transfer" in tasks and not self.ready.tr:
             if transfer_init(&(self.pr), &(self.ba), &(self.th),
-                             &(self.pt), &(self.nl), &(self.tr)) == _FAILURE_:
-                raise ClassBadValueError(self.tr.error_message.decode())
+                             &(self.pt), &(self.fo), &(self.tr)) == _FAILURE_:
+                raise ClassBadValueError(self.tr.error_message)
             self.ready.tr = True
 
-        if "spectra" in tasks and not self.ready.sp:
-            if spectra_init(&(self.pr), &(self.ba), &(self.pt),
-                            &(self.pm), &(self.nl), &(self.tr),
+        if "harmonic" in tasks and not self.ready.sp:
+            if harmonic_init(&(self.pr), &(self.ba), &(self.pt),
+                            &(self.pm), &(self.fo), &(self.tr),
                             &(self.sp)) == _FAILURE_:
-                raise ClassBadValueError(self.sp.error_message.decode())
+                raise ClassBadValueError(self.sp.error_message)
             self.ready.sp = True
 
         if "lensing" in tasks and not self.ready.le:
             if lensing_init(&(self.pr), &(self.pt), &(self.sp),
-                            &(self.nl), &(self.le)) == _FAILURE_:
-                raise ClassBadValueError(self.le.error_message.decode())
+                            &(self.fo), &(self.le)) == _FAILURE_:
+                raise ClassBadValueError(self.le.error_message)
             self.ready.le = True
 
         # At this point, the cosmological instance contains everything needed. The
@@ -486,15 +486,7 @@ cdef class Background:
         It shall be 1 usually.
         """
         def __get__(self):
-            return self.ba.a_today
-
-    property a_max:
-        r"""
-        The maximum scale factor for which results can be computed; it can be
-        greater than 1.0.
-        """
-        def __get__(self):
-            return self.ba.a_max
+            return 1
 
     property Omega0_m:
         r"""
@@ -620,7 +612,7 @@ cdef class Background:
                 bval = (<double*>(np.PyArray_MultiIter_DATA(it, 1)))
                 if background_tau_of_z(self.ba, aval, &tau)==_FAILURE_:
                     bval[0] = NAN
-                elif background_at_tau(self.ba,tau,self.ba.long_info,self.ba.inter_normal,&last_index, &pvecback[0])==_FAILURE_:
+                elif background_at_tau(self.ba,tau,long_info,inter_normal,&last_index, &pvecback[0])==_FAILURE_:
                     bval[0] = NAN
                 else:
                     bval[0] = pvecback[column]
@@ -633,7 +625,7 @@ cdef class Background:
         r"""
         Return :math:`\Omega_{pncdm}` as a function redshift.
         """
-        return 3 * self.p_ncdm(z, species) / self.rho_tot(z)
+        return 3 * self.p_ncdm(z, species) / self.rho_crit(z)
 
     def rho_g(self, z):
         r"""
@@ -654,14 +646,14 @@ cdef class Background:
         Density of matter :math:`\rho_b` as a function of redshift, in
         units of :math:`10^{10} (M_\odot/h) (\mathrm{Mpc}/h)^{-3}`.
         """
-        return self.compute_for_z(z, self.ba.index_bg_Omega_m) * self.rho_tot(z)
+        return self.compute_for_z(z, self.ba.index_bg_Omega_m) * self.rho_crit(z)
 
     def rho_r(self, z):
         r"""
         Density of radiation :math:`\rho_r` as a function of redshift, in
         units of :math:`10^{10} (M_\odot/h) (\mathrm{Mpc}/h)^{-3}`.
         """
-        return self.compute_for_z(z, self.ba.index_bg_Omega_r) * self.rho_tot(z)
+        return self.compute_for_z(z, self.ba.index_bg_Omega_r) * self.rho_crit(z)
 
     def rho_cdm(self, z):
         r"""
@@ -715,14 +707,6 @@ cdef class Background:
         """
         z = np.array(z, dtype=np.float64)
         return -self.ba.K * ( z+1.) ** 2 * self._RHO_
-
-    def rho_tot(self, z):
-        r"""
-        Total density :math:`\rho_\mathrm{tot}` as a function of redshift, in
-        units of :math:`10^{10} (M_\odot/h) (\mathrm{Mpc}/h)^{-3}`. It is usually
-        close to 27.76.
-        """
-        return self.rho_crit(z) - self.rho_k(z)
 
     def rho_fld(self, z):
         r"""
@@ -792,7 +776,7 @@ cdef class Background:
         r"""
         Density parameter of curvature.
         """
-        return 1 - self.rho_tot(z)/self.rho_crit(z)
+        return self.rho_k(z)/self.rho_crit(z)
 
     def Omega_ur(self, z):
         r"""
@@ -962,12 +946,12 @@ cdef class Perturbs:
       the CLASS engine object
     """
     cdef ClassEngine engine
-    cdef perturbs * pt
+    cdef perturbations * pt
     cdef background * ba
 
     def __init__(self, ClassEngine engine):
         self.engine = engine
-        self.engine.compute("perturbs")
+        self.engine.compute("perturbations")
         self.pt = &self.engine.pt
         self.ba = &self.engine.ba
 
@@ -1009,7 +993,7 @@ cdef class Thermo:
       the CLASS engine object
     """
     cdef ClassEngine engine
-    cdef thermo * th
+    cdef thermodynamics * th
     cdef background * ba
 
     def __init__(self, ClassEngine engine):
@@ -1081,7 +1065,7 @@ cdef class Primordial:
       the CLASS engine object
     """
     cdef ClassEngine engine
-    cdef perturbs * pt
+    cdef perturbations * pt
     cdef primordial * pm
     cdef background * ba
 
@@ -1094,7 +1078,7 @@ cdef class Primordial:
 
     def get_pkprim(self, k):
         r"""
-        The primoridal spectrum of curvation perturabtion at ``k``, generated by 
+        The primordial spectrum of curvation perturbation at ``k``, generated by
         inflation. This is defined as:
 
         .. math::
@@ -1156,14 +1140,14 @@ cdef class Primordial:
         memset(titles, 0, _MAXTITLESTRINGLENGTH_)
 
         if primordial_output_titles(self.pt, self.pm, titles)==_FAILURE_:
-            raise ClassRuntimeError(self.pm.error_message.decode())
+            raise ClassRuntimeError(self.pm.error_message)
 
         dtype = _titles_to_dtype(titles)
 
         cdef np.ndarray data = np.zeros(self.pm.lnk_size, dtype=dtype)
 
         if primordial_output_data(self.pt, self.pm, len(dtype.fields), <double*>data.data)==_FAILURE_:
-            raise ClassRuntimeError(self.pm.error_message.decode())
+            raise ClassRuntimeError(self.pm.error_message)
 
         return data
 
@@ -1177,20 +1161,20 @@ cdef class Spectra:
       the CLASS engine object
     """
     cdef ClassEngine engine
-    cdef spectra * sp
+    cdef precision * pr
     cdef background * ba
-    cdef perturbs * pt
+    cdef perturbations * pt
     cdef primordial * pm
-    cdef nonlinear * nl
+    cdef fourier * fo
     cdef readonly dict data
 
     def __init__(self, ClassEngine engine):
         self.engine = engine
-        self.engine.compute("spectra")
+        self.engine.compute("fourier")
 
+        self.pr = &self.engine.pr
         self.ba = &self.engine.ba
-        self.nl = &self.engine.nl
-        self.sp = &self.engine.sp
+        self.fo = &self.engine.fo
         self.pt = &self.engine.pt
         self.pm = &self.engine.pm
 
@@ -1199,7 +1183,7 @@ cdef class Spectra:
         Boolean flag specifying whether the power spectrum is nonlinear.
         """
         def __get__(self):
-          return self.nl.method > 0
+          return self.fo.method != nl_none
 
     property has_pk_matter:
         r"""
@@ -1218,7 +1202,7 @@ cdef class Spectra:
         """
         def __get__(self):
             # factor of 1.001 to avoid bounds errors due to rounding errors
-            return 1.001*np.exp(self.sp.ln_k[0])/self.ba.h;
+            return 1.001*np.exp(self.fo.ln_k[0])/self.ba.h;
 
     property P_k_max:
         r"""
@@ -1227,14 +1211,14 @@ cdef class Spectra:
         """
         def __get__(self):
             # factor of 0.999 to avoid bounds errors due to rounding errors
-            return 0.999*np.exp(self.sp.ln_k[self.sp.ln_k_size-1])/self.ba.h;
+            return 0.999*np.exp(self.fo.ln_k[self.fo.k_size-1])/self.ba.h;
 
     property sigma8:
         r"""
         The amplitude of matter fluctuations at :math:`z=0`.
         """
         def __get__(self):
-            return self.sp.sigma8
+            return self.fo.sigma8[0]
 
     property A_s:
         r"""
@@ -1266,33 +1250,52 @@ cdef class Spectra:
         def __get__(self):
             return self.pm.k_pivot / self.ba.h
 
+    #################################
+    # Gives sigma(R,z) for a given (R,z)
+    cdef sigma(self,R,z, h_units = False):
+        """
+        Gives sigma (total matter) for a given R and z
+        (R is the radius in units of Mpc, so if R=8/h this will be the usual sigma8(z).
+         This is unless h_units is set to true, in which case R is the radius in units of Mpc/h,
+         and R=8 corresponds to sigma8(z))
+
+        .. note::
+
+            there is an additional check to verify whether output contains `mPk`,
+            and whether k_max > ...
+            because otherwise a segfault will occur
+
+        """
+        cdef double sigma
+
+        zarr = np.atleast_1d(z).astype(np.float64)
+        Rarr = np.atleast_1d(R).astype(np.float64)
+
+        if (self.pt.has_pk_matter == _FALSE_):
+            raise ClassRuntimeError("No power spectrum computed. In order to get sigma(R,z) you must add mPk to the list of outputs.")
+
+        if (self.pt.k_max_for_pk < self.ba.h):
+            raise ClassRuntimeError("In order to get sigma(R,z) you must set 'P_k_max_h/Mpc' to 1 or bigger, in order to have k_max > 1 h/Mpc.")
+
+        R_in_Mpc = (Rarr if not h_units else Rarr/self.ba.h)
+
+        pairs = np.array(np.meshgrid(zarr,R_in_Mpc)).T.reshape(-1,2)
+
+        sigmas = np.empty(pairs.shape[0])
+        for ip, pair in enumerate(pairs):
+          if fourier_sigmas_at_z(self.pr,self.ba,self.fo,pair[1],pair[0],self.fo.index_pk_m,out_sigma,&sigma)==_FAILURE_:
+              raise ClassRuntimeError(self.fo.error_message)
+          sigmas[ip] = sigma
+
+        return (sigmas[0] if (np.isscalar(z) and np.isscalar(R)) else np.squeeze(sigmas.reshape(len(zarr),len(Rarr))))
+
     def sigma8_z(self, z):
         r"""
         Return :math:`\sigma_8(z)`.
         """
-        #generate a new output array of the correct shape by broadcasting input arrays together
-        z = np.float64(z)
-        out = np.empty(np.broadcast(z).shape, np.float64)
+        return self.sigma(8, z)
 
-        #generate the iterator over the input and output arrays, does the same thing as
-        cdef np.broadcast it = np.broadcast(z,  out)
-
-        with nogil:
-            while np.PyArray_MultiIter_NOTDONE(it):
-
-                #PyArray_MultiIter_DATA is used to access the pointers the iterator points to
-                aval = (<double*>np.PyArray_MultiIter_DATA(it, 0))[0]
-                bval = (<double*>np.PyArray_MultiIter_DATA(it, 1))
-
-                if _FAILURE_ == spectra_sigma(self.ba, self.pm, self.sp, 8./self.ba.h, aval, bval):
-                    bval[0] = NAN
-
-                #PyArray_MultiIter_NEXT is used to advance the iterator
-                np.PyArray_MultiIter_NEXT(it)
-
-        return out
-
-    def get_transfer(self, z, output_format='class'):
+    def get_transfer(self, z=0, output_format='class'):
         r"""
         Return the density and/or velocity transfer functions for all initial
         conditions today. You must include 'dCl' and 'vCl' in the list of
@@ -1317,74 +1320,95 @@ cdef class Spectra:
           array containing transfer functions. ``k`` here is in units of
           :math:`h \mathrm{Mpc}^{-1}`.
         """
+        cdef char *titles
+        cdef double* data
+        cdef char ic_info[1024]
+        cdef FileName ic_suffix
+        cdef file_format outf
+
         if (not self.pt.has_density_transfers) and (not self.pt.has_velocity_transfers):
             raise RuntimeError("Perturbation is not computed")
-
-        cdef FileName ic_suffix
-        cdef file_format_outf
-        cdef char ic_info[1024]
-
-        cdef char titles[_MAXTITLESTRINGLENGTH_]
-        memset(titles, 0, _MAXTITLESTRINGLENGTH_)
 
         if output_format == 'camb':
             outf = camb_format
         else:
             outf = class_format
 
-        if spectra_output_tk_titles(self.ba, self.pt, outf, titles)==_FAILURE_:
-            raise ClassRuntimeError(self.op.error_message.decode())
+        index_md = self.pt.index_md_scalars;
+        titles = <char*>calloc(_MAXTITLESTRINGLENGTH_,sizeof(char))
+
+        if perturbations_output_titles(self.ba, self.pt, outf, titles)==_FAILURE_:
+            free(titles) #manual free due to error
+            raise ClassRuntimeError(self.pt.error_message)
+
+        tmp = <bytes> titles
+        tmp = str(tmp.decode())
+        names = tmp.split("\t")[:-1]
+        number_of_titles = len(names)
+        timesteps = self.pt.k_size[index_md]
 
         # k is in h/Mpc. Other functions unit is unclear.
         dtype = _titles_to_dtype(titles, remove_units=True)
 
-        index_md = 0
-        ic_num = self.sp.ic_size[index_md]
+        size_ic_data = timesteps*number_of_titles;
+        ic_num = self.pt.ic_size[index_md]
 
-        cdef np.ndarray data = np.zeros((ic_num, self.sp.ln_k_size), dtype=dtype)
+        data = <double*>malloc(sizeof(double)*size_ic_data*ic_num)
 
-        if spectra_output_tk_data(self.ba, self.pt, self.sp, outf, <double> z, len(dtype.fields), <double*> data.data)==_FAILURE_:
-            raise ClassRuntimeError(self.sp.error_message.decode())
+        if perturbations_output_data_at_z(self.ba, self.pt, outf, <double> z, number_of_titles, data)==_FAILURE_:
+            free(titles)
+            free(data)
+            raise ClassRuntimeError(self.pt.error_message)
 
-        ic_keys = []
-        if ic_num > 1:
-            for index_ic in range(ic_num):
-                if spectra_firstline_and_ic_suffix(self.pt, index_ic, ic_info, ic_suffix)==_FAILURE_:
-                    raise ClassRuntimeError(self.op.error_message.decode())
+        transfers = {}
 
-                ic_key = <bytes> ic_suffix
-                ic_keys.append(ic_key.decode())
+        for index_ic in range(ic_num):
+            if perturbations_output_firstline_and_ic_suffix(self.pt, index_ic, ic_info, ic_suffix)==_FAILURE_:
+                free(titles) #manual free due to error
+                free(data) #manual free due to error
+                raise ClassRuntimeError(self.pt.error_message)
+            ic_key = <bytes> ic_suffix
 
-            spectra = {}
-            for ic_key, row in zip(ic_keys, data):
-                spectra[ic_key] = row
-        else:
-            spectra = data[0]
+            tmpdict = {}
+            for i in range(number_of_titles):
+                tmpdict[names[i]] = np.zeros(timesteps, dtype=np.double)
+                for index in range(timesteps):
+                    tmpdict[names[i]][index] = data[index_ic*size_ic_data+index*number_of_titles+i]
 
-        return spectra
+            if ic_num==1:
+                transfers = tmpdict
+            else:
+                transfers[ic_key] = tmpdict
 
+        free(titles)
+        free(data)
 
-    # Gives the pk for a given (k,z)
-    cdef int pk(self, double k, double z, double * pk_ic, int lin, double * pk_ ) nogil:
-        r"""
-        Gives the pk for a given ``k`` and ``z`` (will be nonlinear if requested
-        by the user, linear otherwise).
+        return transfers
+
+    # Gives the total matter pk for a given (k,z)
+    cdef double pk(self,double k, double z, int lin) nogil:
+        """
+        Gives the total matter pk (in Mpc**3) for a given k (in 1/Mpc) and z (will be non linear if requested to Class, linear otherwise)
 
         .. note::
 
-            There is an additional check to verify if output contains `mPk`,
+            there is an additional check that output contains `mPk`,
             because otherwise a segfault will occur
 
         """
-        cdef double pk_cb_ic[1]
-        cdef double pk_cb[1]
-        if lin or self.nl.method == 0:
-            if spectra_pk_at_k_and_z(self.ba, self.pm, self.sp, k, z, pk_, pk_ic, pk_cb, pk_cb_ic) == _FAILURE_:
-                return -1
+        cdef double pk
+
+        if (self.pt.has_pk_matter == _FALSE_):
+            raise ClassRuntimeError("No power spectrum computed. You must add mPk to the list of outputs.")
+
+        if lin or self.fo.method == nl_none:
+            if fourier_pk_at_k_and_z(self.ba,self.pm,self.fo,pk_linear,k,z,self.fo.index_pk_m,&pk,NULL)==_FAILURE_:
+                raise ClassRuntimeError(self.fo.error_message)
         else:
-            if spectra_pk_nl_at_k_and_z(self.ba, self.pm, self.sp, k, z, pk_, pk_cb) ==_FAILURE_:
-                return -1
-        return 0
+            if fourier_pk_at_k_and_z(self.ba,self.pm,self.fo,pk_nonlinear,k,z,self.fo.index_pk_m,&pk,NULL)==_FAILURE_:
+                raise ClassRuntimeError(self.fo.error_message)
+
+        return pk
 
     def get_pk(self, k, z):
         r"""
@@ -1426,7 +1450,7 @@ cdef class Spectra:
 
     def _get_pk(self, k, z, int linear):
 
-        if (self.pt.has_pk_matter == _FALSE_):
+        if (self.fo.has_pk_matter == _FALSE_):
             raise ClassRuntimeError(
                 "No power spectrum computed. You must add mPk to the list of outputs."
                 )
@@ -1435,8 +1459,7 @@ cdef class Spectra:
         k = np.float64(k) * self.ba.h
         z = np.float64(z)
 
-        # Quantities for the isocurvature modes
-        cdef np.ndarray pk_ic = np.zeros(self.sp.ic_ic_size[self.sp.index_md_scalars], dtype='f8')
+        cdef np.ndarray pk_ic = np.zeros(self.fo.k_size_pk, dtype='f8')
 
         #generate a new output array of the correct shape by broadcasting input arrays together
         out = np.empty(np.broadcast(k, z).shape, np.float64)
@@ -1452,9 +1475,7 @@ cdef class Spectra:
                 aval = (<double*>np.PyArray_MultiIter_DATA(it, 0))[0]
                 bval = (<double*>np.PyArray_MultiIter_DATA(it, 1))[0]
                 cval = <double*>(np.PyArray_MultiIter_DATA(it, 2))
-                if -1 == self.pk(aval, bval, <double*> pk_ic.data, linear, cval):
-                    cval[0] = NAN
-
+                cval[0] = self.pk(aval, bval, linear)
                 #PyArray_MultiIter_NEXT is used to advance the iterator
                 np.PyArray_MultiIter_NEXT(it)
 
