@@ -57,8 +57,6 @@ jobs:
     needs:
     - build
     runs-on: ubuntu-latest
-    environment:
-      url: https://pypi.org/p/classylss
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
