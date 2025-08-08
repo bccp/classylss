@@ -1379,6 +1379,8 @@ cdef class Spectra:
                 transfers = tmpdict
             else:
                 transfers[ic_key] = tmpdict
+        #For compatibility, change the name of the k values 
+        transfers["k"] = transfers['k (h/Mpc)']
 
         free(titles)
         free(data)
