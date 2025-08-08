@@ -1218,7 +1218,7 @@ cdef class Spectra:
         The amplitude of matter fluctuations at :math:`z=0`.
         """
         def __get__(self):
-            return self.fo.sigma8[0]
+            return self.fo.sigma8[self.fo.index_pk_m]
 
     property A_s:
         r"""
