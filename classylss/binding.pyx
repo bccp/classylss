@@ -1293,7 +1293,7 @@ cdef class Spectra:
         r"""
         Return :math:`\sigma_8(z)`.
         """
-        return self.sigma(8, z)
+        return self.sigma(8, z, h_units=True)
 
     def get_transfer(self, z=0, output_format='class'):
         r"""
